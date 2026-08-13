@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dossier SASP — Évaluation des procédures</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+:root {
+  --ink:#0b0d10; --paper:#15181d; --paper-alt:#1b1f26; --paper-line:#262b33;
+  --amber:#f2a71b; --amber-dim:#8a6318; --red:#e0453f; --green:#35c48a;
+  --text:#e9e6dc; --text-muted:#8b93a1;
+  --tape: repeating-linear-gradient(90deg, #f2a71b 0 10px, #0b0d10 10px 20px);
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body {
+  background:var(--ink);
+  background-image: radial-gradient(circle at 15% 10%, rgba(224,69,63,0.08), transparent 40%),
+                     radial-gradient(circle at 85% 90%, rgba(242,167,27,0.06), transparent 45%);
+  color:var(--text); font-family:'IBM Plex Mono',monospace; min-height:100vh;
+  display:flex; align-items:center; justify-content:center; padding:24px; line-height:1.5;
+}
+.stage { width:100%; max-width:640px; position:relative; }
+.dossier-tab { display:inline-flex; align-items:center; gap:10px; background:var(--amber); color:var(--ink);
+  font-family:'Bebas Neue',sans-serif; letter-spacing:2px; font-size:14px; padding:6px 16px; border-radius:3px 3px 0 0; margin-left:24px; }
+.folder { background:var(--paper); border:1px solid var(--paper-line); border-radius:2px 8px 8px 8px;
+  box-shadow:0 20px 50px rgba(0,0,0,0.5); overflow:hidden; position:relative; }
+.folder::before { content:""; position:absolute; top:0; left:0; right:0; height:4px; background:var(--tape); opacity:0.85; }
+.folder-inner { padding:36px 32px 28px; }
+h1 { font-family:'Bebas Neue',sans-serif; font-size:38px; letter-spacing:3px; color:var(--text); line-height:1; }
+.subtitle { color:var(--amber); font-size:12px; letter-spacing:2px; text-transform:uppercase; margin-top:8px; }
+hr.report-rule { border:none; border-top:1px dashed var(--paper-line); margin:22px 0; }
+.brief { color:var(--text-muted); font-size:13px; margin-bottom:6px; }
+.field { margin-top:16px; }
+.field label { display:block; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px; }
+.field input, .field select { width:100%; background:var(--paper-alt); border:1px solid var(--paper-line); color:var(--text);
+  font-family:'IBM Plex Mono',monospace; font-size:14px; padding:11px 13px; border-radius:4px; }
+.field input:focus-visible, .field select:focus-visible { outline:2px solid var(--amber); outline-offset:1px; }
+.field-error { font-size:11px; color:var(--red); margin-top:10px; display:none; }
+.field-error.show { display:block; }
+.field-info { font-size:11px; color:var(--green); margin-top:10px; display:none; }
+.field-info.show { display:block; }
+.block-box { margin-top:18px; border:1px solid var(--red); background:rgba(224,69,63,0.1); border-radius:4px; padding:16px; display:none; }
+.block-box.show { display:block; }
+.block-box .bb-title { font-family:'Bebas Neue',sans-serif; letter-spacing:1.5px; color:var(--red); font-size:15px; margin-bottom:6px; }
+.block-box .bb-text { font-size:12.5px; color:var(--text-muted); }
+button.primary { font-family:'Bebas Neue',sans-serif; letter-spacing:2px; font-size:16px; background:var(--amber); color:var(--ink);
+  border:none; padding:14px 28px; border-radius:3px; cursor:pointer; width:100%; margin-top:22px;
+  transition:transform .12s ease,background .12s ease,opacity .12s ease; }
+button.primary:hover:not(:disabled) { background:#ffc04d; }
+button.primary:active:not(:disabled) { transform:scale(.98); }
+button.primary:disabled { opacity:.35; cursor:not-allowed; }
+button.secondary { font-family:'IBM Plex Mono',monospace; font-size:12px; background:transparent; color:var(--text-muted);
+  border:1px solid var(--paper-line); padding:10px 16px; border-radius:4px; cursor:pointer; width:100%; margin-top:10px; }
+button.secondary:hover { border-color:var(--amber-dim); color:var(--text); }
+.matricule { font-size:12px; color:var(--text-muted); letter-spacing:1px; }
+.progress-track { display:flex; gap:4px; margin:14px 0 24px; }
+.progress-bar { height:5px; flex:1; background:var(--paper-line); border-radius:2px; overflow:hidden; }
+.progress-bar-fill { height:100%; width:0%; background:var(--amber); transition:width .3s ease; }
+.category-eyebrow { display:inline-block; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#f2d99b;
+  background:rgba(138,99,24,0.35); border:1px solid var(--amber-dim); padding:3px 9px; border-radius:2px; margin-bottom:14px; }
+.question-text { font-size:17px; color:var(--text); margin-bottom:20px; font-weight:600; }
+.options { display:flex; flex-direction:column; gap:10px; }
+.option { text-align:left; background:var(--paper-alt); border:1px solid var(--paper-line); color:var(--text);
+  padding:13px 16px; border-radius:4px; font-family:'IBM Plex Mono',monospace; font-size:13.5px; cursor:pointer;
+  display:flex; gap:10px; align-items:flex-start; transition:border-color .12s ease,background .12s ease; }
+.option:hover { border-color:var(--amber-dim); }
+.option .marker { font-family:'Bebas Neue',sans-serif; color:var(--text-muted); min-width:18px; }
+.option.selected { border-color:var(--amber); background:rgba(242,167,27,0.14); }
+.option.selected .marker { color:var(--amber); }
+textarea.open-input { width:100%; min-height:130px; background:var(--paper-alt); border:1px solid var(--paper-line); color:var(--text);
+  font-family:'IBM Plex Mono',monospace; font-size:13.5px; padding:14px 16px; border-radius:4px; resize:vertical; line-height:1.6; }
+.open-hint { font-size:11px; color:var(--text-muted); margin-top:8px; }
+.nav-row { display:flex; justify-content:flex-end; margin-top:22px; }
+.btn-next { font-family:'Bebas Neue',sans-serif; letter-spacing:2px; font-size:15px; background:var(--amber); color:var(--ink);
+  border:none; padding:12px 26px; border-radius:3px; cursor:pointer; min-width:180px; transition:transform .12s ease,background .12s ease,opacity .12s ease; }
+.btn-next:hover:not(:disabled) { background:#ffc04d; }
+.btn-next:disabled { opacity:.35; cursor:not-allowed; }
+.score-agent { font-size:13px; color:var(--text); margin-bottom:4px; }
+.score-agent-sub { font-size:12px; color:var(--text-muted); margin-bottom:20px; }
+.recap-list { display:flex; flex-direction:column; gap:8px; margin:20px 0; max-height:360px; overflow-y:auto; padding-right:6px; }
+.recap-row { border:1px solid var(--paper-line); background:var(--paper-alt); border-radius:4px; padding:11px 14px; font-size:12px; }
+.recap-row .rr-q { color:var(--text); margin-bottom:6px; font-weight:600; }
+.recap-row .rr-a { color:var(--text-muted); }
+.recap-row .rr-a b { color:var(--text); font-weight:600; }
+.transmit-status { margin-top:18px; padding:12px 14px; border-radius:4px; font-size:12px; border:1px solid var(--paper-line);
+  background:var(--paper-alt); color:var(--text-muted); display:flex; align-items:center; gap:8px; }
+.transmit-status.ok { border-color:var(--green); color:var(--green); }
+.transmit-status.ko { border-color:var(--red); color:var(--red); }
+.dot-pulse { width:7px; height:7px; border-radius:50%; background:var(--amber); animation:pulse 1s infinite ease-in-out; }
+@keyframes pulse { 0%,100%{opacity:.3} 50%{opacity:1} }
+.hidden { display:none !important; }
+.admin-link { position:fixed; top:16px; right:16px; z-index:10; background:var(--paper-alt); color:var(--text-muted);
+  border:1px solid var(--paper-line); padding:8px 14px; border-radius:20px; font-size:11px; letter-spacing:1px;
+  text-decoration:none; text-transform:uppercase; transition:border-color .12s ease,color .12s ease; }
+.admin-link:hover { border-color:var(--amber-dim); color:var(--amber); }
+footer.foot-note { text-align:center; color:var(--text-muted); font-size:10.5px; letter-spacing:1px; margin-top:14px; opacity:.7; }
+@media (max-width:480px) { h1{font-size:30px} .folder-inner{padding:28px 20px 22px} .btn-next{width:100%} }
+</style>
+</head>
+<body>
+<a href="admin-sasp.html" class="admin-link">🔒 Admin</a>
+<div class="stage">
+  <div class="dossier-tab" id="dossier-number">DOSSIER N° ------</div>
+  <div class="folder"><div class="folder-inner">
+
+    <!-- ===== IDENTIFICATION + JETON ===== -->
+    <section id="screen-id">
+      <h1>ÉVALUATION&nbsp;SASP</h1>
+      <div class="subtitle">Contrôle de connaissance des procédures</div>
+      <hr class="report-rule">
+      <p class="brief">Sélectionnez votre identité, puis demandez un jeton d'accès à un superviseur avant de commencer. Vous disposez de 2 essais maximum.</p>
+
+      <div class="field">
+        <label for="select-agent">Agent</label>
+        <select id="select-agent"><option value="">Chargement de la liste…</option></select>
+      </div>
+
+      <div class="field">
+        <label for="input-token">Jeton d'accès</label>
+        <input type="text" id="input-token" autocomplete="off" placeholder="Transmis par un superviseur">
+      </div>
+
+      <div class="field-error" id="id-error"></div>
+      <div class="field-info" id="id-info"></div>
+      <div class="block-box" id="block-box"><div class="bb-title">🚫 ACCÈS REFUSÉ</div><div class="bb-text" id="block-text"></div></div>
+
+      <button class="secondary" id="btn-request-token">Demander un jeton à un superviseur</button>
+      <button class="primary" id="btn-start">Valider le jeton et ouvrir le dossier</button>
+    </section>
+
+    <!-- ===== QUIZ ===== -->
+    <section id="screen-quiz" class="hidden">
+      <div class="matricule" id="matricule-label">Q. 001 / 000</div>
+      <div class="progress-track" id="progress-track"></div>
+      <span class="category-eyebrow" id="category-label">QCM</span>
+      <div class="question-text" id="question-text"></div>
+      <div id="answer-zone"></div>
+      <div class="nav-row"><button class="btn-next" id="btn-next" disabled>Suivant</button></div>
+    </section>
+
+    <!-- ===== FIN ===== -->
+    <section id="screen-score" class="hidden">
+      <div class="subtitle">Dossier transmis</div>
+      <h1 style="font-size:28px;margin-top:6px;">MERCI</h1>
+      <div class="score-agent" id="score-agent" style="margin-top:14px;"></div>
+      <div class="score-agent-sub" id="score-agent-sub"></div>
+      <hr class="report-rule">
+      <p class="brief" style="margin-bottom:10px;">Récapitulatif de vos réponses (sans correction) :</p>
+      <div class="recap-list" id="recap-list"></div>
+      <div class="transmit-status" id="transmit-status"><span class="dot-pulse"></span><span>Transmission en cours…</span></div>
+      <button class="primary" id="btn-restart">Rouvrir un nouveau dossier</button>
+    </section>
+
+  </div></div>
+  <footer class="foot-note">SASP · CONTRÔLE DE CONNAISSANCE DES PROCÉDURES</footer>
+</div>
+
+<script>
+/* Collez ici l'URL /exec de votre déploiement Apps Script (sasp-backend-apps-script.gs) */
+const API_URL = "https://script.google.com/macros/s/AKfycbxKBB4M1rnkik5Mk6Tg1d2KJqrr5k-bxAXXL9Jx6yD24rqTbmbMva_2Yo_9dqiIJ6bP/exec";
+
+document.getElementById('dossier-number').textContent =
+  'DOSSIER N° ' + Math.floor(100000 + Math.random() * 900000);
+
+let agents = [];
+let identity = { matricule: "", nom: "", prenom: "" };
+let questions = [];
+let current = 0;
+let selected = []; // sélection courante (indices dans options affichées)
+const answers = [];
+
+const screenId = document.getElementById('screen-id');
+const screenQuiz = document.getElementById('screen-quiz');
+const screenScore = document.getElementById('screen-score');
+const selectAgent = document.getElementById('select-agent');
+const idError = document.getElementById('id-error');
+const idInfo = document.getElementById('id-info');
+const blockBox = document.getElementById('block-box');
+const btnStart = document.getElementById('btn-start');
+const btnRequestToken = document.getElementById('btn-request-token');
+const progressTrack = document.getElementById('progress-track');
+const matriculeLabel = document.getElementById('matricule-label');
+const categoryLabel = document.getElementById('category-label');
+const questionText = document.getElementById('question-text');
+const answerZone = document.getElementById('answer-zone');
+const btnNext = document.getElementById('btn-next');
+
+function pad(n) { return String(n).padStart(3, '0'); }
+function escapeHtml(str) { return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function apiGet(params) {
+  const url = API_URL + '?' + Object.keys(params).map(k => k + '=' + encodeURIComponent(params[k])).join('&');
+  const res = await fetch(url);
+  return res.json();
+}
+async function apiPost(body) {
+  const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) });
+  return res.json();
+}
+
+/* ---------- chargement de la liste des agents ---------- */
+(async function loadAgents() {
+  try {
+    agents = await apiGet({ action: 'listAgents' });
+    selectAgent.innerHTML = '<option value="">— Sélectionnez votre nom —</option>' +
+      agents.map(a => `<option value="${escapeHtml(a.matricule)}">${escapeHtml(a.nom)} ${escapeHtml(a.prenom)} (${escapeHtml(a.matricule)})</option>`).join('');
+  } catch (err) {
+    selectAgent.innerHTML = '<option value="">Erreur de chargement — vérifiez l\'URL du backend</option>';
+  }
+})();
+
+/* ---------- demande de jeton ---------- */
+btnRequestToken.addEventListener('click', async () => {
+  const matricule = selectAgent.value;
+  idError.classList.remove('show'); idInfo.classList.remove('show'); blockBox.classList.remove('show');
+  if (!matricule) { idError.textContent = 'Sélectionnez votre nom dans la liste.'; idError.classList.add('show'); return; }
+
+  btnRequestToken.disabled = true;
+  btnRequestToken.textContent = 'Envoi de la demande…';
+  const res = await apiGet({ action: 'requestToken', matricule });
+  btnRequestToken.disabled = false;
+  btnRequestToken.textContent = 'Demander un jeton à un superviseur';
+
+  if (res.error) {
+    blockBox.classList.add('show');
+    document.getElementById('block-text').textContent = res.error;
+  } else {
+    idInfo.textContent = 'Demande envoyée. Un superviseur va vous transmettre un jeton — saisissez-le ci-dessus.';
+    idInfo.classList.add('show');
+  }
+});
+
+/* ---------- validation du jeton + démarrage ---------- */
+btnStart.addEventListener('click', async () => {
+  const matricule = selectAgent.value;
+  const token = document.getElementById('input-token').value.trim();
+  idError.classList.remove('show');
+
+  if (!matricule) { idError.textContent = 'Sélectionnez votre nom dans la liste.'; idError.classList.add('show'); return; }
+  if (!token) { idError.textContent = 'Saisissez le jeton transmis par un superviseur.'; idError.classList.add('show'); return; }
+
+  btnStart.disabled = true; btnStart.textContent = 'Vérification…';
+  const check = await apiGet({ action: 'verifyToken', matricule, token });
+  if (!check.valid) {
+    btnStart.disabled = false; btnStart.textContent = 'Valider le jeton et ouvrir le dossier';
+    idError.textContent = 'Jeton invalide ou expiré — redemandez-en un.';
+    idError.classList.add('show');
+    return;
+  }
+
+  const qRes = await apiGet({ action: 'getQuestions', matricule, token });
+  btnStart.disabled = false; btnStart.textContent = 'Valider le jeton et ouvrir le dossier';
+  if (qRes.error || !qRes.questions || qRes.questions.length === 0) {
+    idError.textContent = qRes.error || 'Aucune question disponible pour le moment.';
+    idError.classList.add('show');
+    return;
+  }
+
+  const agent = agents.find(a => a.matricule === matricule) || {};
+  identity = { matricule, nom: agent.nom || '', prenom: agent.prenom || '' };
+  identity.token = token;
+  questions = qRes.questions;
+
+  screenId.classList.add('hidden');
+  screenQuiz.classList.remove('hidden');
+  buildProgress();
+  renderQuestion();
+});
+
+/* ---------- quiz ---------- */
+function buildProgress() {
+  progressTrack.innerHTML = '';
+  questions.forEach(() => {
+    const bar = document.createElement('div'); bar.className = 'progress-bar';
+    const fill = document.createElement('div'); fill.className = 'progress-bar-fill';
+    bar.appendChild(fill); progressTrack.appendChild(bar);
+  });
+}
+function updateProgress() {
+  progressTrack.querySelectorAll('.progress-bar-fill').forEach((fill, i) => {
+    fill.style.width = i < current ? '100%' : (i === current ? '35%' : '0%');
+  });
+}
+
+function renderQuestion() {
+  selected = [];
+  const item = questions[current];
+  matriculeLabel.textContent = `Q. ${pad(current + 1)} / ${pad(questions.length)}`;
+  categoryLabel.textContent = item.type === 'open' ? 'Question ouverte' : (item.type === 'mcq-multi' ? 'QCM — plusieurs réponses possibles' : 'QCM');
+  questionText.textContent = item.q;
+  updateProgress();
+  answerZone.innerHTML = '';
+
+  if (item.type === 'mcq' || item.type === 'mcq-multi') {
+    const wrap = document.createElement('div'); wrap.className = 'options';
+    const letters = ['A','B','C','D','E','F','G','H','I','J'];
+    item.options.forEach((opt, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'option';
+      btn.innerHTML = `<span class="marker">${letters[idx] || (idx+1)}</span><span>${escapeHtml(opt)}</span>`;
+      btn.addEventListener('click', () => {
+        if (item.type === 'mcq-multi') {
+          const pos = selected.indexOf(idx);
+          if (pos >= 0) { selected.splice(pos, 1); btn.classList.remove('selected'); }
+          else { selected.push(idx); btn.classList.add('selected'); }
+        } else {
+          selected = [idx];
+          wrap.querySelectorAll('.option').forEach((b, i) => b.classList.toggle('selected', i === idx));
+        }
+        btnNext.disabled = selected.length === 0;
+      });
+      wrap.appendChild(btn);
+    });
+    answerZone.appendChild(wrap);
+  } else {
+    const ta = document.createElement('textarea');
+    ta.className = 'open-input'; ta.id = 'open-answer'; ta.placeholder = 'Rédigez votre réponse ici…';
+    ta.addEventListener('input', () => { btnNext.disabled = ta.value.trim().length === 0; });
+    answerZone.appendChild(ta);
+    const hint = document.createElement('div'); hint.className = 'open-hint';
+    hint.textContent = 'Réponse libre — transmise pour validation par un superviseur.';
+    answerZone.appendChild(hint);
+  }
+
+  btnNext.disabled = true;
+  btnNext.textContent = current === questions.length - 1 ? 'Terminer' : 'Suivant';
+}
+
+function finalizeCurrentAnswer() {
+  const item = questions[current];
+  if (item.type === 'mcq' || item.type === 'mcq-multi') {
+    const selectedTexts = selected.map(i => item.options[i]);
+    answers.push({ id: item.id, type: item.type, q: item.q, shownOptions: item.options, selectedTexts, given: selectedTexts.join(', ') });
+  } else {
+    const val = document.getElementById('open-answer').value.trim();
+    answers.push({ id: item.id, type: 'open', q: item.q, given: val.length ? val : '(aucune réponse)' });
+  }
+}
+
+btnNext.addEventListener('click', () => {
+  finalizeCurrentAnswer();
+  current++;
+  if (current < questions.length) renderQuestion(); else finishQuiz();
+});
+
+/* ---------- fin de quiz ---------- */
+async function finishQuiz() {
+  screenQuiz.classList.add('hidden');
+  screenScore.classList.remove('hidden');
+
+  document.getElementById('score-agent').textContent = `${identity.nom} ${identity.prenom} — Matricule ${identity.matricule}`;
+  document.getElementById('score-agent-sub').textContent = 'Enregistrement en cours…';
+
+  const recapList = document.getElementById('recap-list');
+  recapList.innerHTML = '';
+  answers.forEach((a, i) => {
+    const row = document.createElement('div'); row.className = 'recap-row';
+    row.innerHTML = `<div class="rr-q">${pad(i+1)}. ${escapeHtml(a.q)}</div><div class="rr-a">Votre réponse : <b>${escapeHtml(a.given)}</b></div>`;
+    recapList.appendChild(row);
+  });
+
+  const payload = {
+    action: 'submitAttempt',
+    matricule: identity.matricule, nom: identity.nom, prenom: identity.prenom, token: identity.token,
+    mcqAnswers: answers.filter(a => a.type === 'mcq' || a.type === 'mcq-multi').map(a => ({ id: a.id, q: a.q, shownOptions: a.shownOptions, selectedTexts: a.selectedTexts })),
+    openAnswers: answers.filter(a => a.type === 'open').map(a => ({ id: a.id, q: a.q, given: a.given }))
+  };
+
+  const statusEl = document.getElementById('transmit-status');
+  try {
+    const res = await apiPost(payload);
+    if (res.error) throw new Error(res.error);
+    document.getElementById('score-agent-sub').textContent =
+      `Essai ${res.essais} enregistré.` + (res.blocked ? " Vous avez atteint le nombre maximal d'essais." : "");
+    statusEl.className = 'transmit-status ok';
+    statusEl.innerHTML = '<span>✅ Rapport transmis automatiquement à un superviseur.</span>';
+  } catch (err) {
+    statusEl.className = 'transmit-status ko';
+    statusEl.innerHTML = '<span>⚠️ Échec de la transmission — prévenez un superviseur en indiquant votre matricule.</span>';
+  }
+}
+
+document.getElementById('btn-restart').addEventListener('click', () => location.reload());
+</script>
+</body>
+</html>
