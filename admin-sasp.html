@@ -18,8 +18,12 @@ h1 { font-family:'Bebas Neue',sans-serif; font-size:30px; letter-spacing:2px; ma
 .card { background:var(--paper); border:1px solid var(--paper-line); border-radius:6px; padding:24px; max-width:900px; margin:0 auto 20px; }
 .field { margin-top:14px; }
 .field label { display:block; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px; }
-.field input, .field select, .field textarea { width:100%; background:var(--paper-alt); border:1px solid var(--paper-line); color:var(--text);
+.field input:not([type="checkbox"]), .field select, .field textarea { width:100%; background:var(--paper-alt); border:1px solid var(--paper-line); color:var(--text);
   font-family:'IBM Plex Mono',monospace; font-size:13.5px; padding:10px 12px; border-radius:4px; }
+.field input[type="checkbox"] { width:16px; height:16px; min-width:16px; flex-shrink:0; margin:0;
+  accent-color:var(--amber); background:var(--paper-alt); border:1px solid var(--paper-line); border-radius:3px; }
+.perm-row { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text); }
+.perm-row.super { color:var(--amber); }
 button { font-family:'Bebas Neue',sans-serif; letter-spacing:1.5px; font-size:14px; background:var(--amber); color:var(--ink);
   border:none; padding:10px 20px; border-radius:3px; cursor:pointer; margin-top:14px; }
 button:hover { background:#ffc04d; }
@@ -39,6 +43,12 @@ th { color:var(--amber); text-transform:uppercase; font-size:10.5px; letter-spac
   border:1px solid var(--paper-line); padding:8px 14px; border-radius:20px; font-size:11px; letter-spacing:1px;
   text-decoration:none; text-transform:uppercase; transition:border-color .12s ease,color .12s ease; }
 .back-link:hover { border-color:var(--amber-dim); color:var(--amber); }
+.pw-link { position:fixed; top:16px; right:16px; z-index:10; background:var(--paper-alt); color:var(--text-muted);
+  border:1px solid var(--paper-line); padding:8px 14px; border-radius:20px; font-size:11px; letter-spacing:1px;
+  text-transform:uppercase; cursor:pointer; transition:border-color .12s ease,color .12s ease; }
+.pw-link:hover { border-color:var(--amber-dim); color:var(--amber); }
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; z-index:50; }
+.modal-overlay .card { max-width:380px; width:90%; margin:0; }
 .error-msg { color:var(--red); font-size:12px; margin-top:10px; }
 .option-row { display:flex; gap:8px; align-items:center; margin-top:6px; }
 .option-row input[type=text] { flex:1; }
@@ -51,11 +61,48 @@ small.muted { color:var(--text-muted); }
 </head>
 <body>
 <a href="index.html" class="back-link">← Retour au quiz</a>
+<button class="pw-link hidden" id="btn-open-pw">🔑 Mon mot de passe</button>
+
+<div id="pw-modal" class="modal-overlay hidden">
+  <div class="card">
+    <h1 style="font-size:16px;">Changer mon mot de passe</h1>
+    <div class="field"><label>Mot de passe actuel</label><input type="password" id="pw-old" autocomplete="current-password"></div>
+    <div class="field"><label>Nouveau mot de passe</label><input type="password" id="pw-new" autocomplete="new-password"></div>
+    <div class="field"><label>Confirmer le nouveau mot de passe</label><input type="password" id="pw-confirm" autocomplete="new-password"></div>
+    <div class="error-msg hidden" id="pw-error"></div>
+    <div class="error-msg hidden" id="pw-success" style="color:var(--green);"></div>
+    <button id="btn-save-pw">Valider</button>
+    <button class="ghost" id="btn-close-pw" type="button">Annuler</button>
+  </div>
+</div>
+
+<div id="admin-edit-modal" class="modal-overlay hidden">
+  <div class="card">
+    <h1 style="font-size:16px;" id="admin-edit-title">Modifier le compte</h1>
+    <div class="field">
+      <label>Droits</label>
+      <div id="admin-edit-perms" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;"></div>
+    </div>
+    <div class="field">
+      <label class="perm-row"><input type="checkbox" id="admin-edit-actif"> Compte actif</label>
+    </div>
+    <hr style="border:none;border-top:1px solid var(--paper-line);margin:16px 0;">
+    <div class="field">
+      <label class="perm-row super"><input type="checkbox" id="admin-edit-superadmin"> Promouvoir super admin</label>
+      <small class="muted" style="display:block;margin-top:4px;">Donne tous les droits. Une fois promu, le compte ne pourra plus être modifié ni supprimé depuis ce panneau.</small>
+    </div>
+    <div class="error-msg hidden" id="admin-edit-error"></div>
+    <button id="btn-save-admin-edit">Enregistrer</button>
+    <button class="ghost" id="btn-close-admin-edit" type="button">Annuler</button>
+    <button class="danger" id="btn-delete-admin-edit" style="margin-top:8px;">Supprimer ce compte</button>
+  </div>
+</div>
 
 <div id="screen-login" class="card" style="margin-top:10vh;">
   <h1>🔒 ADMINISTRATION SASP</h1>
   <div class="subtitle">Accès réservé aux superviseurs</div>
-  <div class="field"><label for="admin-password">Mot de passe</label><input type="password" id="admin-password"></div>
+  <div class="field"><label for="admin-username">Identifiant</label><input type="text" id="admin-username" autocomplete="username"></div>
+  <div class="field"><label for="admin-password">Mot de passe</label><input type="password" id="admin-password" autocomplete="current-password"></div>
   <div class="error-msg hidden" id="login-error"></div>
   <button id="btn-login">Se connecter</button>
 </div>
@@ -68,6 +115,7 @@ small.muted { color:var(--text-muted); }
     <div class="tab active" data-tab="agents">Agents</div>
     <div class="tab" data-tab="questions">Questions</div>
     <div class="tab" data-tab="essais">Essais</div>
+    <div class="tab hidden" data-tab="admins" id="admins-tab-btn">Admins</div>
   </div>
 
   <!-- ===== AGENTS ===== -->
@@ -111,6 +159,26 @@ small.muted { color:var(--text-muted); }
       <div id="essai-detail-content"></div>
     </div>
   </div>
+
+  <!-- ===== ADMINS (super admin uniquement) ===== -->
+  <div class="card hidden" id="tab-admins">
+    <h1 style="font-size:18px;">Créer un compte admin</h1>
+    <div class="field"><label>Identifiant</label><input type="text" id="new-admin-username"></div>
+    <div class="field"><label>Mot de passe</label><input type="password" id="new-admin-password"></div>
+    <div class="field">
+      <label>Droits</label>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">
+        <label class="perm-row"><input type="checkbox" class="new-admin-perm" value="agents"> Gérer les agents (ajout/suppression)</label>
+        <label class="perm-row"><input type="checkbox" class="new-admin-perm" value="questions"> Gérer les questions</label>
+        <label class="perm-row"><input type="checkbox" class="new-admin-perm" value="essais"> Consulter les essais</label>
+        <label class="perm-row"><input type="checkbox" class="new-admin-perm" value="resetEssais"> Réinitialiser les essais</label>
+        <label class="perm-row super"><input type="checkbox" id="new-admin-superadmin"> Super admin (tous les droits, peut gérer les autres admins)</label>
+      </div>
+    </div>
+    <button id="btn-add-admin">Créer le compte</button>
+    <div class="error-msg hidden" id="admin-error"></div>
+    <table id="admins-table"><thead><tr><th>Identifiant</th><th>Rôle</th><th>Droits</th><th>Statut</th><th></th></tr></thead><tbody></tbody></table>
+  </div>
 </div>
 
 <script>
@@ -118,6 +186,10 @@ small.muted { color:var(--text-muted); }
 const API_URL = "https://script.google.com/macros/s/AKfycbxKBB4M1rnkik5Mk6Tg1d2KJqrr5k-bxAXXL9Jx6yD24rqTbmbMva_2Yo_9dqiIJ6bP/exec";
 
 let session = null; // jeton de session admin (renvoyé par le serveur après login réussi)
+let isSuperAdmin = false;
+let myPermissions = [];
+
+function can(perm) { return isSuperAdmin || myPermissions.indexOf(perm) !== -1; }
 
 function escapeHtml(str) { return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
@@ -133,19 +205,77 @@ async function apiPost(body) {
 
 /* ---------- connexion ---------- */
 document.getElementById('btn-login').addEventListener('click', async () => {
+  const username = document.getElementById('admin-username').value.trim();
   const password = document.getElementById('admin-password').value;
   const errEl = document.getElementById('login-error');
   errEl.classList.add('hidden');
-  const res = await apiGet({ action: 'adminLogin', password });
+  const res = await apiGet({ action: 'adminLogin', username, password });
   if (res.error || !res.session) {
     errEl.textContent = res.error || 'Connexion impossible';
     errEl.classList.remove('hidden');
     return;
   }
   session = res.session;
+  isSuperAdmin = !!res.isSuperAdmin;
+  myPermissions = res.permissions || [];
+
   document.getElementById('screen-login').classList.add('hidden');
   document.getElementById('screen-admin').classList.remove('hidden');
-  loadAgents(); loadQuestions(); loadEssais();
+
+  // N'affiche que les onglets pour lesquels ce compte a les droits.
+  document.querySelector('[data-tab="agents"]').classList.toggle('hidden', !can('agents'));
+  document.querySelector('[data-tab="questions"]').classList.toggle('hidden', !can('questions'));
+  document.querySelector('[data-tab="essais"]').classList.toggle('hidden', !can('essais'));
+  document.getElementById('admins-tab-btn').classList.toggle('hidden', !isSuperAdmin);
+
+  // Active le premier onglet visible.
+  const firstVisible = document.querySelector('.tab:not(.hidden)');
+  if (firstVisible) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('[id^="tab-"]').forEach(c => c.classList.add('hidden'));
+    firstVisible.classList.add('active');
+    document.getElementById('tab-' + firstVisible.dataset.tab).classList.remove('hidden');
+  }
+
+  if (can('agents')) loadAgents();
+  if (can('questions')) loadQuestions();
+  if (can('essais')) loadEssais();
+  if (isSuperAdmin) loadAdmins();
+
+  document.getElementById('btn-open-pw').classList.remove('hidden');
+});
+
+/* ---------- changement de mot de passe (tout admin connecté) ---------- */
+document.getElementById('btn-open-pw').addEventListener('click', () => {
+  document.getElementById('pw-old').value = '';
+  document.getElementById('pw-new').value = '';
+  document.getElementById('pw-confirm').value = '';
+  document.getElementById('pw-error').classList.add('hidden');
+  document.getElementById('pw-success').classList.add('hidden');
+  document.getElementById('pw-modal').classList.remove('hidden');
+});
+document.getElementById('btn-close-pw').addEventListener('click', () => {
+  document.getElementById('pw-modal').classList.add('hidden');
+});
+document.getElementById('btn-save-pw').addEventListener('click', async () => {
+  const oldPassword = document.getElementById('pw-old').value;
+  const newPassword = document.getElementById('pw-new').value;
+  const confirm = document.getElementById('pw-confirm').value;
+  const errEl = document.getElementById('pw-error');
+  const okEl = document.getElementById('pw-success');
+  errEl.classList.add('hidden'); okEl.classList.add('hidden');
+
+  if (!oldPassword || !newPassword) { errEl.textContent = 'Tous les champs sont requis.'; errEl.classList.remove('hidden'); return; }
+  if (newPassword !== confirm) { errEl.textContent = 'Les deux nouveaux mots de passe ne correspondent pas.'; errEl.classList.remove('hidden'); return; }
+
+  const res = await apiPost({ action: 'adminChangePassword', session, oldPassword, newPassword });
+  if (res.error) { errEl.textContent = res.error; errEl.classList.remove('hidden'); return; }
+
+  okEl.textContent = 'Mot de passe changé avec succès.';
+  okEl.classList.remove('hidden');
+  document.getElementById('pw-old').value = '';
+  document.getElementById('pw-new').value = '';
+  document.getElementById('pw-confirm').value = '';
 });
 
 /* ---------- onglets ---------- */
@@ -307,17 +437,23 @@ async function loadEssais() {
   (list.error ? [] : list).forEach(r => {
     const tr = document.createElement('tr');
     tr.style.cursor = 'pointer';
+    const resetBtnHtml = can('resetEssais')
+      ? `<button class="danger" style="margin:0;padding:6px 12px;font-size:11px;">Réinitialiser essais</button>`
+      : '';
     tr.innerHTML = `<td>${escapeHtml(r.matricule)}</td><td>${escapeHtml(r.nom)} ${escapeHtml(r.prenom)}</td>
       <td>${escapeHtml(r.essais)}</td><td>${escapeHtml(r.note1 || '—')}</td><td>${escapeHtml(r.note2 || '—')}</td>
       <td>${escapeHtml(r.rang || '—')}</td><td>${r.dernierEssai ? new Date(r.dernierEssai).toLocaleString('fr-FR') : '—'}</td>
-      <td><button class="danger" data-matricule="${escapeHtml(r.matricule)}" style="margin:0;padding:6px 12px;font-size:11px;">Réinitialiser essais</button></td>`;
+      <td>${resetBtnHtml}</td>`;
     tr.addEventListener('click', () => openAttemptDetail(r.matricule, r.nom, r.prenom));
-    tr.querySelector('button').addEventListener('click', async (ev) => {
-      ev.stopPropagation(); // ne pas déclencher l'ouverture du détail
-      if (!confirm(`Réinitialiser les essais de ${r.nom} ${r.prenom} (${r.matricule}) ? L'agent reste dans la liste, seul son historique d'essais est effacé.`)) return;
-      await apiPost({ action: 'adminResetAttempts', session, matricule: r.matricule });
-      loadEssais();
-    });
+    const resetBtn = tr.querySelector('button');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', async (ev) => {
+        ev.stopPropagation(); // ne pas déclencher l'ouverture du détail
+        if (!confirm(`Réinitialiser les essais de ${r.nom} ${r.prenom} (${r.matricule}) ? L'agent reste dans la liste, seul son historique d'essais est effacé.`)) return;
+        await apiPost({ action: 'adminResetAttempts', session, matricule: r.matricule });
+        loadEssais();
+      });
+    }
     tbody.appendChild(tr);
   });
 }
@@ -369,6 +505,110 @@ document.getElementById('btn-close-detail').addEventListener('click', () => {
   document.getElementById('essai-detail').classList.add('hidden');
   document.getElementById('essais-table').classList.remove('hidden');
   document.getElementById('essais-hint').classList.remove('hidden');
+});
+
+/* ---------- admins (super admin uniquement) ---------- */
+const permLabels = { agents: 'Agents', questions: 'Questions', essais: 'Essais', resetEssais: 'Réinit. essais' };
+const ALL_PERMS = ['agents', 'questions', 'essais', 'resetEssais'];
+
+let editingAdminUsername = null;
+let editingAdminActif = true;
+
+async function loadAdmins() {
+  const list = await apiGet({ action: 'adminListAdmins', session });
+  const tbody = document.querySelector('#admins-table tbody');
+  tbody.innerHTML = '';
+  (list.error ? [] : list).forEach(a => {
+    const tr = document.createElement('tr');
+    const role = a.isSuperAdmin ? '<span class="pill ok">Super admin</span>' : 'Admin';
+    const perms = a.isSuperAdmin ? 'Tous les droits' : (a.permissions.map(p => permLabels[p] || p).join(', ') || '—');
+
+    tr.innerHTML = `<td>${escapeHtml(a.username)}</td><td>${role}</td><td style="font-size:11.5px;">${escapeHtml(perms)}</td>
+      <td><span class="pill ${a.actif ? 'ok' : 'ko'}">${a.actif ? 'Actif' : 'Inactif'}</span></td>
+      <td></td>`;
+
+    if (!a.isSuperAdmin) {
+      tr.style.cursor = 'pointer';
+      tr.addEventListener('click', () => openAdminEditModal(a));
+      const btn = document.createElement('button');
+      btn.className = 'ghost';
+      btn.style.cssText = 'margin:0;padding:6px 12px;font-size:11px;';
+      btn.textContent = 'Modifier';
+      btn.addEventListener('click', (ev) => { ev.stopPropagation(); openAdminEditModal(a); });
+      tr.lastElementChild.appendChild(btn);
+    } else {
+      tr.lastElementChild.innerHTML = '<small class="muted">Non modifiable ici</small>';
+    }
+
+    tbody.appendChild(tr);
+  });
+}
+
+function openAdminEditModal(a) {
+  editingAdminUsername = a.username;
+  editingAdminActif = a.actif;
+  document.getElementById('admin-edit-title').textContent = 'Modifier « ' + a.username + ' »';
+  document.getElementById('admin-edit-perms').innerHTML = ALL_PERMS.map(p => `
+    <label class="perm-row">
+      <input type="checkbox" class="admin-edit-perm" data-perm="${p}" ${a.permissions.indexOf(p) !== -1 ? 'checked' : ''}> ${escapeHtml(permLabels[p] || p)}
+    </label>`).join('');
+  document.getElementById('admin-edit-actif').checked = a.actif;
+  document.getElementById('admin-edit-superadmin').checked = false;
+  document.getElementById('admin-edit-error').classList.add('hidden');
+  document.getElementById('admin-edit-modal').classList.remove('hidden');
+}
+
+document.getElementById('btn-close-admin-edit').addEventListener('click', () => {
+  document.getElementById('admin-edit-modal').classList.add('hidden');
+});
+
+document.getElementById('btn-save-admin-edit').addEventListener('click', async () => {
+  const permissions = Array.from(document.querySelectorAll('.admin-edit-perm:checked')).map(cb => cb.dataset.perm);
+  const actif = document.getElementById('admin-edit-actif').checked;
+  const makeSuperAdmin = document.getElementById('admin-edit-superadmin').checked;
+  const errEl = document.getElementById('admin-edit-error');
+  errEl.classList.add('hidden');
+
+  if (makeSuperAdmin) {
+    const sure = confirm(`Donner les droits SUPER ADMIN à "${editingAdminUsername}" ? Cette action est irréversible depuis ce panneau.`);
+    if (!sure) return;
+  }
+
+  const res = await apiPost({ action: 'adminUpdateAdmin', session, username: editingAdminUsername, permissions, actif, makeSuperAdmin });
+  if (res.error) { errEl.textContent = res.error; errEl.classList.remove('hidden'); return; }
+
+  document.getElementById('admin-edit-modal').classList.add('hidden');
+  loadAdmins();
+});
+
+document.getElementById('btn-delete-admin-edit').addEventListener('click', async () => {
+  if (!confirm(`Supprimer le compte admin "${editingAdminUsername}" ?`)) return;
+  const res = await apiPost({ action: 'adminRemoveAdmin', session, username: editingAdminUsername });
+  if (res.error) { alert(res.error); return; }
+  document.getElementById('admin-edit-modal').classList.add('hidden');
+  loadAdmins();
+});
+
+
+document.getElementById('btn-add-admin').addEventListener('click', async () => {
+  const username = document.getElementById('new-admin-username').value.trim();
+  const password = document.getElementById('new-admin-password').value;
+  const isSuper = document.getElementById('new-admin-superadmin').checked;
+  const permissions = Array.from(document.querySelectorAll('.new-admin-perm:checked')).map(cb => cb.value);
+  const errEl = document.getElementById('admin-error');
+  errEl.classList.add('hidden');
+
+  if (!username || !password) { errEl.textContent = 'Identifiant et mot de passe requis.'; errEl.classList.remove('hidden'); return; }
+  if (!isSuper && permissions.length === 0) { errEl.textContent = 'Cochez au moins un droit (ou Super admin).'; errEl.classList.remove('hidden'); return; }
+
+  const res = await apiPost({ action: 'adminAddAdmin', session, username, password, permissions, isSuperAdmin: isSuper });
+  if (res.error) { errEl.textContent = res.error; errEl.classList.remove('hidden'); return; }
+
+  document.getElementById('new-admin-username').value = '';
+  document.getElementById('new-admin-password').value = '';
+  document.getElementById('new-admin-superadmin').checked = false;
+  document.querySelectorAll('.new-admin-perm').forEach(cb => cb.checked = false);
+  loadAdmins();
 });
 
 updateQuestionFormVisibility();
