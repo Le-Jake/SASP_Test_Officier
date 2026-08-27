@@ -159,7 +159,8 @@ footer.foot-note { text-align:center; color:var(--text-muted); font-size:10.5px;
 
 <script>
 /* Collez ici l'URL /exec de votre déploiement Apps Script (sasp-backend-apps-script.gs) */
-const API_URL = "https://script.google.com/macros/s/AKfycbxKBB4M1rnkik5Mk6Tg1d2KJqrr5k-bxAXXL9Jx6yD24rqTbmbMva_2Yo_9dqiIJ6bP/exec";
+/* Collez ici l'URL de votre Worker Cloudflare (ex. https://sasp-backend.votre-compte.workers.dev) */
+const API_URL = "sasp-backend.bob-holla-11.workers.dev";
 
 document.getElementById('dossier-number').textContent =
   'DOSSIER N° ' + Math.floor(100000 + Math.random() * 900000);
