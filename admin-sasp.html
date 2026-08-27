@@ -88,9 +88,17 @@ small.muted { color:var(--text-muted); }
       <label class="perm-row"><input type="checkbox" id="admin-edit-actif"> Compte actif</label>
     </div>
     <hr style="border:none;border-top:1px solid var(--paper-line);margin:16px 0;">
-    <div class="field">
+    <div class="field" id="admin-edit-superadmin-zone">
       <label class="perm-row super"><input type="checkbox" id="admin-edit-superadmin"> Promouvoir super admin</label>
-      <small class="muted" style="display:block;margin-top:4px;">Donne tous les droits. Une fois promu, le compte ne pourra plus être modifié ni supprimé depuis ce panneau.</small>
+      <small class="muted" style="display:block;margin-top:4px;">Donne tous les droits.</small>
+    </div>
+    <div class="field hidden" id="admin-edit-manage-zone">
+      <label class="perm-row super"><input type="checkbox" id="admin-edit-manage-superadmins"> Peut gérer les autres super admins</label>
+      <small class="muted" style="display:block;margin-top:4px;">Permet à ce compte de modifier, rétrograder ou supprimer d'autres comptes super admin.</small>
+    </div>
+    <div class="field hidden" id="admin-edit-demote-zone">
+      <label class="perm-row"><input type="checkbox" id="admin-edit-demote"> Rétrograder en admin normal</label>
+      <small class="muted" style="display:block;margin-top:4px;">Retire le statut super admin (et tous les droits qui vont avec) à ce compte.</small>
     </div>
     <div class="error-msg hidden" id="admin-edit-error"></div>
     <button id="btn-save-admin-edit">Enregistrer</button>
@@ -173,7 +181,8 @@ small.muted { color:var(--text-muted); }
         <label class="perm-row"><input type="checkbox" class="new-admin-perm" value="questions"> Gérer les questions</label>
         <label class="perm-row"><input type="checkbox" class="new-admin-perm" value="essais"> Consulter les essais</label>
         <label class="perm-row"><input type="checkbox" class="new-admin-perm" value="resetEssais"> Réinitialiser les essais</label>
-        <label class="perm-row super"><input type="checkbox" id="new-admin-superadmin"> Super admin (tous les droits, peut gérer les autres admins)</label>
+        <label class="perm-row super"><input type="checkbox" id="new-admin-superadmin"> Super admin (tous les droits)</label>
+        <label class="perm-row super hidden" id="new-admin-manage-zone"><input type="checkbox" id="new-admin-manage-superadmins"> Peut aussi gérer les autres super admins</label>
       </div>
     </div>
     <button id="btn-add-admin">Créer le compte</button>
@@ -190,6 +199,7 @@ const API_URL = "https://sasp-backend.bob-holla-11.workers.dev";
 let session = null; // jeton de session admin (renvoyé par le serveur après login réussi)
 let isSuperAdmin = false;
 let myPermissions = [];
+let myCanManageSuperAdmins = false;
 
 function can(perm) { return isSuperAdmin || myPermissions.indexOf(perm) !== -1; }
 
@@ -211,7 +221,16 @@ document.getElementById('btn-login').addEventListener('click', async () => {
   const password = document.getElementById('admin-password').value;
   const errEl = document.getElementById('login-error');
   errEl.classList.add('hidden');
-  const res = await apiGet({ action: 'adminLogin', username, password });
+
+  let res;
+  try {
+    res = await apiGet({ action: 'adminLogin', username, password });
+  } catch (err) {
+    errEl.textContent = 'Impossible de contacter le serveur (' + err.message + '). Vérifiez API_URL dans le code et ouvrez la console (F12) pour plus de détails.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
   if (res.error || !res.session) {
     errEl.textContent = res.error || 'Connexion impossible';
     errEl.classList.remove('hidden');
@@ -219,6 +238,7 @@ document.getElementById('btn-login').addEventListener('click', async () => {
   }
   session = res.session;
   isSuperAdmin = !!res.isSuperAdmin;
+  myCanManageSuperAdmins = !!res.canManageSuperAdmins;
   myPermissions = res.permissions || [];
 
   document.getElementById('screen-login').classList.add('hidden');
@@ -243,6 +263,7 @@ document.getElementById('btn-login').addEventListener('click', async () => {
   if (can('questions')) loadQuestions();
   if (can('essais')) loadEssais();
   if (isSuperAdmin) loadAdmins();
+  if (myCanManageSuperAdmins) document.getElementById('new-admin-manage-zone').classList.remove('hidden');
 
   document.getElementById('btn-open-pw').classList.remove('hidden');
 });
@@ -515,6 +536,7 @@ const ALL_PERMS = ['agents', 'questions', 'essais', 'resetEssais'];
 
 let editingAdminUsername = null;
 let editingAdminActif = true;
+let editingAdminIsSuperAdmin = false;
 
 async function loadAdmins() {
   const list = await apiGet({ action: 'adminListAdmins', session });
@@ -522,14 +544,17 @@ async function loadAdmins() {
   tbody.innerHTML = '';
   (list.error ? [] : list).forEach(a => {
     const tr = document.createElement('tr');
-    const role = a.isSuperAdmin ? '<span class="pill ok">Super admin</span>' : 'Admin';
+    const role = a.isSuperAdmin
+      ? '<span class="pill ok">Super admin</span>' + (a.canManageSuperAdmins ? ' <span class="pill ok" style="margin-left:4px;">Gère les super admins</span>' : '')
+      : 'Admin';
     const perms = a.isSuperAdmin ? 'Tous les droits' : (a.permissions.map(p => permLabels[p] || p).join(', ') || '—');
 
     tr.innerHTML = `<td>${escapeHtml(a.username)}</td><td>${role}</td><td style="font-size:11.5px;">${escapeHtml(perms)}</td>
       <td><span class="pill ${a.actif ? 'ok' : 'ko'}">${a.actif ? 'Actif' : 'Inactif'}</span></td>
       <td></td>`;
 
-    if (!a.isSuperAdmin) {
+    const canEditThisRow = !a.isSuperAdmin || myCanManageSuperAdmins;
+    if (canEditThisRow) {
       tr.style.cursor = 'pointer';
       tr.addEventListener('click', () => openAdminEditModal(a));
       const btn = document.createElement('button');
@@ -549,14 +574,39 @@ async function loadAdmins() {
 function openAdminEditModal(a) {
   editingAdminUsername = a.username;
   editingAdminActif = a.actif;
+  editingAdminIsSuperAdmin = a.isSuperAdmin;
   document.getElementById('admin-edit-title').textContent = 'Modifier « ' + a.username + ' »';
-  document.getElementById('admin-edit-perms').innerHTML = ALL_PERMS.map(p => `
-    <label class="perm-row">
-      <input type="checkbox" class="admin-edit-perm" data-perm="${p}" ${a.permissions.indexOf(p) !== -1 ? 'checked' : ''}> ${escapeHtml(permLabels[p] || p)}
-    </label>`).join('');
-  document.getElementById('admin-edit-actif').checked = a.actif;
-  document.getElementById('admin-edit-superadmin').checked = false;
   document.getElementById('admin-edit-error').classList.add('hidden');
+  document.getElementById('admin-edit-actif').checked = a.actif;
+
+  const permsZone = document.getElementById('admin-edit-perms');
+  const superZone = document.getElementById('admin-edit-superadmin-zone');
+  const demoteZone = document.getElementById('admin-edit-demote-zone');
+  const manageZone = document.getElementById('admin-edit-manage-zone');
+
+  if (a.isSuperAdmin) {
+    // Compte déjà super admin : uniquement visible ici si l'utilisateur a le privilège.
+    permsZone.innerHTML = '<small class="muted">Un super admin a automatiquement tous les droits.</small>';
+    superZone.classList.add('hidden');
+    demoteZone.classList.remove('hidden');
+    document.getElementById('admin-edit-demote').checked = false;
+    manageZone.classList.remove('hidden');
+    document.getElementById('admin-edit-manage-superadmins').checked = a.canManageSuperAdmins;
+  } else {
+    permsZone.innerHTML = ALL_PERMS.map(p => `
+      <label class="perm-row">
+        <input type="checkbox" class="admin-edit-perm" data-perm="${p}" ${a.permissions.indexOf(p) !== -1 ? 'checked' : ''}> ${escapeHtml(permLabels[p] || p)}
+      </label>`).join('');
+    demoteZone.classList.add('hidden');
+    manageZone.classList.add('hidden');
+    if (myCanManageSuperAdmins) {
+      superZone.classList.remove('hidden');
+      document.getElementById('admin-edit-superadmin').checked = false;
+    } else {
+      superZone.classList.add('hidden');
+    }
+  }
+
   document.getElementById('admin-edit-modal').classList.remove('hidden');
 }
 
@@ -565,18 +615,34 @@ document.getElementById('btn-close-admin-edit').addEventListener('click', () => 
 });
 
 document.getElementById('btn-save-admin-edit').addEventListener('click', async () => {
-  const permissions = Array.from(document.querySelectorAll('.admin-edit-perm:checked')).map(cb => cb.dataset.perm);
   const actif = document.getElementById('admin-edit-actif').checked;
-  const makeSuperAdmin = document.getElementById('admin-edit-superadmin').checked;
   const errEl = document.getElementById('admin-edit-error');
   errEl.classList.add('hidden');
 
-  if (makeSuperAdmin) {
-    const sure = confirm(`Donner les droits SUPER ADMIN à "${editingAdminUsername}" ? Cette action est irréversible depuis ce panneau.`);
-    if (!sure) return;
+  let payload = { action: 'adminUpdateAdmin', session, username: editingAdminUsername, actif };
+
+  if (editingAdminIsSuperAdmin) {
+    const demote = document.getElementById('admin-edit-demote').checked;
+    const canManageSuperAdmins = document.getElementById('admin-edit-manage-superadmins').checked;
+    if (demote) {
+      const sure = confirm(`Rétrograder "${editingAdminUsername}" en admin normal ? Il perdra tous les droits super admin.`);
+      if (!sure) return;
+      payload.demote = true;
+      payload.permissions = [];
+    } else {
+      payload.canManageSuperAdmins = canManageSuperAdmins;
+    }
+  } else {
+    payload.permissions = Array.from(document.querySelectorAll('.admin-edit-perm:checked')).map(cb => cb.dataset.perm);
+    const makeSuperAdmin = document.getElementById('admin-edit-superadmin') && document.getElementById('admin-edit-superadmin').checked;
+    if (makeSuperAdmin) {
+      const sure = confirm(`Donner les droits SUPER ADMIN à "${editingAdminUsername}" ?`);
+      if (!sure) return;
+      payload.makeSuperAdmin = true;
+    }
   }
 
-  const res = await apiPost({ action: 'adminUpdateAdmin', session, username: editingAdminUsername, permissions, actif, makeSuperAdmin });
+  const res = await apiPost(payload);
   if (res.error) { errEl.textContent = res.error; errEl.classList.remove('hidden'); return; }
 
   document.getElementById('admin-edit-modal').classList.add('hidden');
@@ -596,6 +662,7 @@ document.getElementById('btn-add-admin').addEventListener('click', async () => {
   const username = document.getElementById('new-admin-username').value.trim();
   const password = document.getElementById('new-admin-password').value;
   const isSuper = document.getElementById('new-admin-superadmin').checked;
+  const canManageSuperAdmins = document.getElementById('new-admin-manage-superadmins').checked;
   const permissions = Array.from(document.querySelectorAll('.new-admin-perm:checked')).map(cb => cb.value);
   const errEl = document.getElementById('admin-error');
   errEl.classList.add('hidden');
@@ -603,12 +670,13 @@ document.getElementById('btn-add-admin').addEventListener('click', async () => {
   if (!username || !password) { errEl.textContent = 'Identifiant et mot de passe requis.'; errEl.classList.remove('hidden'); return; }
   if (!isSuper && permissions.length === 0) { errEl.textContent = 'Cochez au moins un droit (ou Super admin).'; errEl.classList.remove('hidden'); return; }
 
-  const res = await apiPost({ action: 'adminAddAdmin', session, username, password, permissions, isSuperAdmin: isSuper });
+  const res = await apiPost({ action: 'adminAddAdmin', session, username, password, permissions, isSuperAdmin: isSuper, canManageSuperAdmins });
   if (res.error) { errEl.textContent = res.error; errEl.classList.remove('hidden'); return; }
 
   document.getElementById('new-admin-username').value = '';
   document.getElementById('new-admin-password').value = '';
   document.getElementById('new-admin-superadmin').checked = false;
+  document.getElementById('new-admin-manage-superadmins').checked = false;
   document.querySelectorAll('.new-admin-perm').forEach(cb => cb.checked = false);
   loadAdmins();
 });
