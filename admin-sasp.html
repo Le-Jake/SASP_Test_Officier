@@ -44,10 +44,14 @@ th { color:var(--amber); text-transform:uppercase; font-size:10.5px; letter-spac
   border:1px solid var(--paper-line); padding:8px 14px; border-radius:20px; font-size:11px; letter-spacing:1px;
   text-decoration:none; text-transform:uppercase; transition:border-color .12s ease,color .12s ease; }
 .back-link:hover { border-color:var(--amber-dim); color:var(--amber); }
-.pw-link { position:fixed; top:16px; right:16px; z-index:10; background:var(--paper-alt); color:var(--text-muted);
+.pw-link { position:fixed; top:16px; right:180px; z-index:10; background:var(--paper-alt); color:var(--text-muted);
   border:1px solid var(--paper-line); padding:8px 14px; border-radius:20px; font-size:11px; letter-spacing:1px;
   text-transform:uppercase; cursor:pointer; transition:border-color .12s ease,color .12s ease; }
 .pw-link:hover { border-color:var(--amber-dim); color:var(--amber); }
+.logout-link { position:fixed; top:16px; right:16px; z-index:10; background:var(--paper-alt); color:var(--text-muted);
+  border:1px solid var(--red); padding:8px 14px; border-radius:20px; font-size:11px; letter-spacing:1px;
+  text-transform:uppercase; cursor:pointer; transition:background .12s ease,color .12s ease; }
+.logout-link:hover { background:var(--red); color:#fff; }
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; z-index:50; }
 .modal-overlay .card { max-width:380px; width:90%; margin:0; }
 .error-msg { color:var(--red); font-size:12px; margin-top:10px; }
@@ -63,6 +67,7 @@ small.muted { color:var(--text-muted); }
 <body>
 <a href="index.html" class="back-link">← Retour au quiz</a>
 <button class="pw-link hidden" id="btn-open-pw">🔑 Mon mot de passe</button>
+<button class="logout-link hidden" id="btn-logout">🚪 Déconnexion</button>
 
 <div id="pw-modal" class="modal-overlay hidden">
   <div class="card">
@@ -194,7 +199,7 @@ small.muted { color:var(--text-muted); }
 <script>
 /* Collez ici l'URL /exec de votre déploiement Apps Script (le même que le quiz) */
 /* Collez ici l'URL de votre Worker Cloudflare (le même que le quiz) */
-const API_URL = "https://sasp-backend.bob-holla-11.workers.dev";
+const API_URL = "https://sasp-backend.bob-holla-11.workers.dev/";
 
 let session = null; // jeton de session admin (renvoyé par le serveur après login réussi)
 let isSuperAdmin = false;
@@ -216,31 +221,7 @@ async function apiPost(body) {
 }
 
 /* ---------- connexion ---------- */
-document.getElementById('btn-login').addEventListener('click', async () => {
-  const username = document.getElementById('admin-username').value.trim();
-  const password = document.getElementById('admin-password').value;
-  const errEl = document.getElementById('login-error');
-  errEl.classList.add('hidden');
-
-  let res;
-  try {
-    res = await apiGet({ action: 'adminLogin', username, password });
-  } catch (err) {
-    errEl.textContent = 'Impossible de contacter le serveur (' + err.message + '). Vérifiez API_URL dans le code et ouvrez la console (F12) pour plus de détails.';
-    errEl.classList.remove('hidden');
-    return;
-  }
-
-  if (res.error || !res.session) {
-    errEl.textContent = res.error || 'Connexion impossible';
-    errEl.classList.remove('hidden');
-    return;
-  }
-  session = res.session;
-  isSuperAdmin = !!res.isSuperAdmin;
-  myCanManageSuperAdmins = !!res.canManageSuperAdmins;
-  myPermissions = res.permissions || [];
-
+function enterAdminScreen() {
   document.getElementById('screen-login').classList.add('hidden');
   document.getElementById('screen-admin').classList.remove('hidden');
 
@@ -266,6 +247,63 @@ document.getElementById('btn-login').addEventListener('click', async () => {
   if (myCanManageSuperAdmins) document.getElementById('new-admin-manage-zone').classList.remove('hidden');
 
   document.getElementById('btn-open-pw').classList.remove('hidden');
+  document.getElementById('btn-logout').classList.remove('hidden');
+}
+
+document.getElementById('btn-login').addEventListener('click', async () => {
+  const username = document.getElementById('admin-username').value.trim();
+  const password = document.getElementById('admin-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.classList.add('hidden');
+
+  let res;
+  try {
+    res = await apiGet({ action: 'adminLogin', username, password });
+  } catch (err) {
+    errEl.textContent = 'Impossible de contacter le serveur (' + err.message + '). Vérifiez API_URL dans le code et ouvrez la console (F12) pour plus de détails.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  if (res.error || !res.session) {
+    errEl.textContent = res.error || 'Connexion impossible';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  session = res.session;
+  isSuperAdmin = !!res.isSuperAdmin;
+  myCanManageSuperAdmins = !!res.canManageSuperAdmins;
+  myPermissions = res.permissions || [];
+
+  localStorage.setItem('sasp_admin_session', session);
+  enterAdminScreen();
+});
+
+/* ---------- rester connecté : on retente la session sauvegardée au chargement ---------- */
+(async function restoreSession() {
+  const saved = localStorage.getItem('sasp_admin_session');
+  if (!saved) return;
+  try {
+    const res = await apiGet({ action: 'adminWhoAmI', session: saved });
+    if (res.error) { localStorage.removeItem('sasp_admin_session'); return; }
+    session = saved;
+    isSuperAdmin = !!res.isSuperAdmin;
+    myCanManageSuperAdmins = !!res.canManageSuperAdmins;
+    myPermissions = res.permissions || [];
+    enterAdminScreen();
+  } catch (err) { /* pas de connexion réseau : on reste sur l'écran de login */ }
+})();
+
+/* ---------- déconnexion ---------- */
+document.getElementById('btn-logout').addEventListener('click', () => {
+  localStorage.removeItem('sasp_admin_session');
+  session = null; isSuperAdmin = false; myCanManageSuperAdmins = false; myPermissions = [];
+  document.getElementById('admin-username').value = '';
+  document.getElementById('admin-password').value = '';
+  document.getElementById('btn-open-pw').classList.add('hidden');
+  document.getElementById('btn-logout').classList.add('hidden');
+  document.getElementById('screen-admin').classList.add('hidden');
+  document.getElementById('screen-login').classList.remove('hidden');
 });
 
 /* ---------- changement de mot de passe (tout admin connecté) ---------- */
